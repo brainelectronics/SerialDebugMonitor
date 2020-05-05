@@ -9,7 +9,7 @@
 #  @author       brainelectronics (info@brainelectronics.de)
 #  @file         serialDebugMonitor.py
 #  @date         May, 2020
-#  @version      0.1.0
+#  @version      0.1.1
 #  @brief        Connect to Service Reader and test commands or functions
 #
 #   usage: python2/python3 serialDebugMonitor.py
@@ -57,11 +57,11 @@ class frmSerialMonitor(wx.Frame):
 
     def __init__(self, *args, **kwds):
         logFormat = "[%(asctime)s] [%(levelname)-8s] [%(filename)-20s @ %(funcName)-15s:%(lineno)4s] %(message)s"
-        logging.basicConfig(format=logFormat, level=logging.DEBUG)
+        logging.basicConfig(format=logFormat, level=logging.INFO)
         self.logger = logging.getLogger(__name__)
 
         self.startTime = datetime.datetime.now()    # time of application start
-        self.logger.debug("Running app on %s ..." %self.startTime)
+        self.logger.debug("Starting app at %s ..." %self.startTime)
 
         # begin wxGlade: frmSerialMonitor.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_FRAME_STYLE
@@ -138,7 +138,7 @@ class frmSerialMonitor(wx.Frame):
         self._runReadThread = False
         self._conn = None
         self._recievedQueue = queue.Queue()
-        self.maxSerialLines = 10
+        self.maxSerialChars = 10*1000
 
         self.debugInfoDict = dict()
 
@@ -157,8 +157,6 @@ class frmSerialMonitor(wx.Frame):
         # self.__bindTimer()
 
     def __bindEvents(self):
-        self.logger.debug("Binding events")
-
         self.Bind(
             wx.EVT_COMBOBOX,
             self.OnBaudRateChanged,
@@ -349,9 +347,8 @@ class frmSerialMonitor(wx.Frame):
 
             self.stopReceivingThread()
 
-            self.logger.info("all tasks are stopped")
+            self.logger.debug("all tasks are stopped")
         except Exception as e:
-            self.logger.warning("failed to stop a task")
             self.logger.warning(e)
 
     ##
@@ -367,8 +364,15 @@ class frmSerialMonitor(wx.Frame):
 
         self.logger.debug("Serial Read Thread started")
 
-        if not (connection and connection.isOpen()):
-            self.logger.info("Connection not yet active")
+        if not connection:
+            self.logger.error("No Serial connection given")
+            return
+        else:
+            if not connection.isOpen():
+                self.logger.warning("Connection not yet active")
+                connection.open()
+            else:
+                pass
 
         # create endless reading loop in a seperate thread.
         # kill it by calling stopReadingThread()
@@ -377,21 +381,23 @@ class frmSerialMonitor(wx.Frame):
         # https://stackoverflow.com/questions/18018033/how-to-stop-a-looping-thread-in-python
         while self._runReadThread:
             if connection and connection.isOpen():
-                # for PySerial v3.0 or later, use property "in_waiting" instead of function inWaiting()
-                # if incoming bytes are waiting to be read from the serial input buffer
+                # for PySerial v3.0 or later, use property "in_waiting"
+                # instead of function inWaiting()
                 # https://stackoverflow.com/questions/17553543/pyserial-non-blocking-read-loop
 
-                unixMicros = datetime.datetime.now()
+                unixMicros = self.getCurrentTime()
                 # unixMicros = self.getUnixMicrosTimestamp()
                 line = ""
 
-                # if incoming bytes are waiting to be read from the serial input buffer
+                # if incoming bytes are waiting to be read from serial input
+                # buffer
                 if (connection.inWaiting() > 0):
                     # read a '\n' terminated line
                     line = connection.readline()
 
+                # if read thing is not empty
                 if line != "":
-                    self.logger.info("Read line: %s" %(line))
+                    self.logger.debug("Read line: %s" %(line))
 
                     # create dict of this message
                     messageDict = dict()
@@ -481,6 +487,18 @@ class frmSerialMonitor(wx.Frame):
         return int(time.time()*1000*1000)
 
     ##
+    ## @brief      Gets the current time.
+    ##
+    ## Format is Hour:Minutes:Seconds:Microseconds
+    ##
+    ## @param      self  The object
+    ##
+    ## @return     The timestamp as string.
+    ##
+    def getCurrentTime(self):
+        return datetime.datetime.now().strftime("%H:%M:%S:%f")
+
+    ##
     ## @brief      Return runtime of the app
     ##
     ## @param      self  The object
@@ -568,7 +586,7 @@ class frmSerialMonitor(wx.Frame):
                 self.restorePreviousSelection()
         except Exception as e:
             pass
-            self.logger.warning(e)
+            # self.logger.warning(e)
 
     def restorePreviousSelection(self):
         idx = self.activeUserSelection["item"]
@@ -596,38 +614,19 @@ class frmSerialMonitor(wx.Frame):
         # build message string
         textMessage = "%s \t %s" %(data["timestamp"], data["message"])
 
+        txtContent = self.txtSerialMonitor.GetValue()
+
+        # limit content length to 10000 characters
+        newLength = len(txtContent) + len(textMessage)
+        if newLength > self.maxSerialChars:
+            newLength = self.maxSerialChars - len(textMessage)
+
+            # set new content to last N characters
+            self.txtSerialMonitor.SetValue(txtContent[-newLength:])
+
+        # append text after cutting the existing text, to automatically scroll
+        # to bottom position
         self.txtSerialMonitor.AppendText(textMessage)
-
-        """
-        # get current content
-        totalContent = self.txtSerialMonitor.GetValue()
-
-        # add this message
-        totalContent += textMessage
-
-        # convert string to list
-        totalContentList = totalContent.split("\n")
-
-        # update/reduce list with only to n elements
-        totalContentList = totalContentList[-self.maxSerialLines:]
-
-        # # clear the text
-        # self.txtSerialMonitor.Clear()
-        self.txtSerialMonitor.SetValue(''.join(totalContentList))
-        # self.txtSerialMonitor.AppendText(textMessage)
-        """
-
-        numLines = self.txtSerialMonitor.GetNumberOfLines()
-
-        if numLines > self.maxSerialLines:
-            # get <type 'unicode'>
-            totalContent = self.txtSerialMonitor.GetValue()
-
-            # split at new line
-            totalContentList = totalContent.split("\n")
-
-            # take only last N elements and recreate one string
-            self.txtSerialMonitor.SetValue(''.join(totalContentList[-self.maxSerialLines:]))
 
     def OnPortChanged(self, event):
         if self.cmbPorts.GetCurrentSelection() < 0:
@@ -769,7 +768,7 @@ class frmSerialMonitor(wx.Frame):
 
         aboutInfo = wx.adv.AboutDialogInfo()
         aboutInfo.SetName("EVSE Serial Debug Monitor")
-        aboutInfo.SetVersion("0.1.0")
+        aboutInfo.SetVersion("0.1.1")
         aboutInfo.SetDescription(("Serial Monitor with JSON parser for EVSE Debug output"))
         aboutInfo.SetCopyright("(C) 2020")
         licenseText = open("LICENSE", 'r').read()
