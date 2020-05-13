@@ -9,7 +9,7 @@
 #  @author       brainelectronics (info@brainelectronics.de)
 #  @file         serialDebugMonitor.py
 #  @date         May, 2020
-#  @version      0.1.1
+#  @version      0.2.0
 #  @brief        Connect to Service Reader and test commands or functions
 #
 #   usage: python2/python3 serialDebugMonitor.py
@@ -298,6 +298,10 @@ class frmSerialMonitor(wx.Frame):
         # update available ports combo box
         self.OnRefreshPorts(event=None)
 
+        # pre-select last item of port combo box
+        self.cmbPorts.SetSelection(self.cmbPorts.GetCount()-1)
+        self.OnPortChanged(None)
+
         # pre-select item #9 of baudrate combo box
         self.cmbBaudRate.SetSelection(9)
 
@@ -551,7 +555,7 @@ class frmSerialMonitor(wx.Frame):
             flatElement = self.flatten_json(self.debugInfoDict[key])
 
             # add new rows for all elements of the flat dict
-            for el in flatElement:
+            for el, val in sorted(flatElement.items()):
                 # add key (most left column of this list)
                 self.item_detail_list.InsertItem(index, el)
 
@@ -578,7 +582,7 @@ class frmSerialMonitor(wx.Frame):
             # remove all elements/rows/items in this list view
             self.item_list.DeleteAllItems()
 
-            for ele in self.debugInfoDict:
+            for ele, val in sorted(self.debugInfoDict.items(), reverse=True):
                 self.item_list.InsertItem(0, ele)
 
             # do only if debugInfoDict has content
@@ -768,7 +772,7 @@ class frmSerialMonitor(wx.Frame):
 
         aboutInfo = wx.adv.AboutDialogInfo()
         aboutInfo.SetName("EVSE Serial Debug Monitor")
-        aboutInfo.SetVersion("0.1.1")
+        aboutInfo.SetVersion("0.2.0")
         aboutInfo.SetDescription(("Serial Monitor with JSON parser for EVSE Debug output"))
         aboutInfo.SetCopyright("(C) 2020")
         licenseText = open("LICENSE", 'r').read()

@@ -6,7 +6,7 @@ This program by itself is not very different from many other serial monitor prog
 
 <!-- A .wxg file is also included in this repository which can be loaded and modified using WxGlade a very simple python GUI builder for WxPython. -->
 
-![alt text](https://raw.githubusercontent.com/volunteerlabs/PythonSerialMonitor/master/images/serial_monitor.png)
+![alt text](https://raw.githubusercontent.com/brainelectronics/SerialDebugMonitor/master/images/serial_monitor.png)
 
 ## Installation
 
