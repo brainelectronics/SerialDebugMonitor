@@ -9,7 +9,7 @@
 #  @author       brainelectronics (info@brainelectronics.de)
 #  @file         serialDebugMonitor.py
 #  @date         June, 2020
-#  @version      0.3.0
+#  @version      0.4.1
 #  @brief        Connect to Service Reader and test commands or functions
 #
 #   usage: python2/python3 serialDebugMonitor.py
@@ -487,10 +487,10 @@ class frmSerialMonitor(wx.Frame):
         self.logger.info("Stopping receiving thread now")
         self._runReadThread = False
 
-        # wait up to 1 second until thread terminates
-        self._receivingThread.join(1)
-
         if self._receivingThread is not None:
+            # wait up to 1 second until thread terminates
+            self._receivingThread.join(1)
+
             del self._receivingThread
 
     ##
@@ -706,7 +706,7 @@ class frmSerialMonitor(wx.Frame):
             self.txtSerialMonitor.AppendText('** Baud Rate: %s \n' %(thisBaudrate))
         except serial.serialutil.SerialException as e:
             self.txtSerialMonitor.AppendText('** An Error Occurred while Opening the Serial Port\n')
-            self.logger.warning("Error: ", e)
+            self.logger.warning("Error: %s" %(e))
 
     def OnBaudRateChanged(self, event):
         cmbBox = self.cmbPorts
@@ -729,6 +729,10 @@ class frmSerialMonitor(wx.Frame):
         self.restorePortSelection(portString=lastString)
 
     def OnConnectTarget(self, event):
+        # return if connection is None
+        if self._conn == None:
+            return
+
         if self._conn.isOpen():
             # connection is open
             self.logger.debug("Port is open, closing now")
