@@ -327,6 +327,9 @@ class frmSerialMonitor(wx.Frame):
         # pre-select defaultBaudrate of the baudrate combo box by it's index
         self.cmbBaudRate.SetSelection(self.defaultBaudrateIndex)
 
+        # auto connect to target
+        self.OnConnectTarget(None)
+
     def __create_menu(self):
         MenuBar = wx.MenuBar()
 
@@ -712,6 +715,8 @@ class frmSerialMonitor(wx.Frame):
         # event.Skip()
 
     def OnRefreshPorts(self, event):
+        lastString = self.cmbPorts.GetStringSelection()
+
         ports = list(port_list.comports())
         self.cmbPorts.Clear()
         self.availablePorts = list()
@@ -719,6 +724,9 @@ class frmSerialMonitor(wx.Frame):
         for p in ports:
             self.cmbPorts.Append(p.device)
             self.availablePorts.append(p.device)
+
+        # try to restore previously selected port
+        self.restorePortSelection(portString=lastString)
 
     def OnConnectTarget(self, event):
         if self._conn.isOpen():
