@@ -8,8 +8,8 @@
 #
 #  @author       brainelectronics (info@brainelectronics.de)
 #  @file         serialDebugMonitor.py
-#  @date         May, 2020
-#  @version      0.2.0
+#  @date         June, 2020
+#  @version      0.3.0
 #  @brief        Connect to Service Reader and test commands or functions
 #
 #   usage: python2/python3 serialDebugMonitor.py
@@ -70,16 +70,38 @@ class frmSerialMonitor(wx.Frame):
         self.SetSize((800, 600))
         self.SetBackgroundColour("WHITE")
 
+        # define default baudrate and port name (can be part of port's name)
+        defaultBaudrate = 921600
+        self.defaultPort = "usbmodem1421"
+
+        # create list of available baudrates
+        availableBaudrates = [300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 74880, 115200, 230400, 250000, 500000, 921600, 1000000, 2000000]
+
+        # convert values of list to string
+        availableBaudrates = [str(x) for x in availableBaudrates]
+
+        # comboBox selection is done by index, -1 is None/empty selection
+        self.defaultBaudrateIndex = -1
+
+        if str(defaultBaudrate) in availableBaudrates:
+            # get index of defaultBaurate if in the availableBaudrates list
+            self.defaultBaudrateIndex = availableBaudrates.index(str(defaultBaudrate))
+        else:
+            self.logger.warning("Specified defaultBaudrate is not available for selection, using None/empty")
+
+        # create empty list of available ports
+        self.availablePorts = list()
+
         # Combo Box for available Baudrates
         self.cmbBaudRate = wx.ComboBox(
             self, wx.ID_ANY,
-            choices=["300", "1200", "2400", "4800", "9600", "19200", "38400", "57600", "74880", "115200", "230400", "250000", "500000", "1000000", "2000000"],
+            choices=availableBaudrates,
             style=wx.CB_DROPDOWN | wx.CB_READONLY)
 
         # yet empty Combo Box of Serial Ports
         self.cmbPorts = wx.ComboBox(
             self, wx.ID_ANY,
-            choices=[],
+            choices=self.availablePorts,
             style=wx.CB_DROPDOWN | wx.CB_READONLY)
 
         # Refresh Serial Ports button
@@ -297,13 +319,13 @@ class frmSerialMonitor(wx.Frame):
 
         # update available ports combo box
         self.OnRefreshPorts(event=None)
+        self.restorePortSelection(portString=self.defaultPort)
 
-        # pre-select last item of port combo box
-        self.cmbPorts.SetSelection(self.cmbPorts.GetCount()-1)
+        # open connection to target if some port has been selected
         self.OnPortChanged(None)
 
-        # pre-select item #9 of baudrate combo box
-        self.cmbBaudRate.SetSelection(9)
+        # pre-select defaultBaudrate of the baudrate combo box by it's index
+        self.cmbBaudRate.SetSelection(self.defaultBaudrateIndex)
 
     def __create_menu(self):
         MenuBar = wx.MenuBar()
@@ -608,6 +630,30 @@ class frmSerialMonitor(wx.Frame):
         # self.item_detail_list.Focus(idx)
         # self.item_detail_list.Select(idx)
 
+    def restorePortSelection(self, portString):
+        matchingIndexList = list()
+
+        # search for matching string in available ports, if portString not ""
+        if len(portString):
+            # search for matches of self.defaultPort in available ports list
+            matchingIndexList = [idx for idx, val in enumerate(self.availablePorts) if portString in val]
+
+        # comboBox selection is done by index, -1 is None/empty selection
+        matchingIndex = -1
+
+        if len(matchingIndexList):
+            # take first match if list contains at least 1 element
+            matchingIndex = matchingIndexList[0]
+        else:
+            pass
+            # specify explicit value or use wx constant
+            # matchingIndex = wx.NOT_FOUND
+
+            # self.logger.warning("Specified defaultPort is not available for selection, using None/empty")
+
+        # pre-select the port of the port combo box
+        self.cmbPorts.SetSelection(matchingIndex)
+
     def listen_event(self, data):
         wx.CallAfter(self.fillSerialConsole, data)
 
@@ -668,9 +714,11 @@ class frmSerialMonitor(wx.Frame):
     def OnRefreshPorts(self, event):
         ports = list(port_list.comports())
         self.cmbPorts.Clear()
+        self.availablePorts = list()
 
         for p in ports:
             self.cmbPorts.Append(p.device)
+            self.availablePorts.append(p.device)
 
     def OnConnectTarget(self, event):
         if self._conn.isOpen():
